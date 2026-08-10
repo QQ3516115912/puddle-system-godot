@@ -1,5 +1,13 @@
 # 积水系统插件
 
+Godot 4 2D dynamic puddle system with infinite noise puddles, region-based inclusion and exclusion, reflections, wind ripples, footsteps, rain ripples, and static water surfaces.
+
+Godot 4 的 2D 动态积水系统，支持无限噪声积水、指定区域生成与排除、倒影、风纹、脚步涟漪、雨滴涟漪和固定水面。
+
+The native acceleration library currently supports Windows x86_64. Other platforms automatically fall back to the GDScript implementation.
+
+当前原生加速库支持 Windows x86_64，其他平台自动回退到 GDScript。
+
 这是一个适用于 Godot 4.4 及以上版本的 2D 世界积水与水面倒影插件。当前发布包仅支持 Windows x86_64，并通过一个 `积水管理器` Autoload 维护动态积水遮罩、倒影视口、脚步涟漪和固定水面纹理。
 
 ## 功能
