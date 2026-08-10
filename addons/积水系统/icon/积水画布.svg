@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="canvas_water" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9aeaff"/>
+      <stop offset="0.52" stop-color="#4ab8ed"/>
+      <stop offset="1" stop-color="#2468bd"/>
+    </linearGradient>
+    <linearGradient id="canvas_edge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e9fbff"/>
+      <stop offset="1" stop-color="#8edbfa"/>
+    </linearGradient>
+  </defs>
+  <rect x="5" y="7" width="54" height="50" rx="8" fill="url(#canvas_water)" stroke="url(#canvas_edge)" stroke-width="3"/>
+  <path d="M8 25c8-7 14 4 22-1s14 5 25-2" fill="none" stroke="#dff8ff" stroke-width="3" stroke-linecap="round" opacity=".82"/>
+  <path d="M8 39c7-5 13 4 21 0s14 4 27-2" fill="none" stroke="#b9edff" stroke-width="2.5" stroke-linecap="round" opacity=".72"/>
+  <path d="M32 14c-4.5 6.5-8 10.5-8 15a8 8 0 0 0 16 0c0-4.5-3.5-8.5-8-15z" fill="#e9fbff" fill-opacity=".82" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M28 29c1.2-2.3 2.5-4.1 4-6" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".9"/>
+  <circle cx="48" cy="47" r="2" fill="#fff" opacity=".85"/>
+  <circle cx="52" cy="43" r="1.3" fill="#fff" opacity=".68"/>
+</svg>
