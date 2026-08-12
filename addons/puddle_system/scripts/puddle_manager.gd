@@ -477,8 +477,13 @@ func request_mask_generation(node: Node, visible_rect: Rect2) -> void:
 	var gds_prepare_start := Time.get_ticks_usec()
 	var enable_global_noise := bool(node.get("enable_global_noise_puddles"))
 	var limit_global_noise := bool(node.get("limit_global_noise_range"))
+	var global_noise_limit_mode := int(node.get("global_noise_limit_mode"))
 	var global_noise_rect := _get_global_noise_rect(node)
-	var has_global_noise_in_rect := enable_global_noise and (not limit_global_noise or world_rect.intersects(global_noise_rect))
+	var global_noise_polygon := _get_global_noise_limit_polygon(node) if limit_global_noise and global_noise_limit_mode == PuddleCanvas.GlobalNoiseLimitMode.POLYGON else PackedVector2Array()
+	var global_noise_bounds := _calculate_polygon_bounds(global_noise_polygon)
+	var global_noise_limit_valid := global_noise_limit_mode == PuddleCanvas.GlobalNoiseLimitMode.RECTANGLE or global_noise_polygon.size() >= 3
+	var global_noise_limit_overlaps := world_rect.intersects(global_noise_rect) if global_noise_limit_mode == PuddleCanvas.GlobalNoiseLimitMode.RECTANGLE else world_rect.intersects(global_noise_bounds)
+	var has_global_noise_in_rect := enable_global_noise and (not limit_global_noise or (global_noise_limit_valid and global_noise_limit_overlaps))
 	var enabledGENERATEregion := bool(node.get("enable_generation_regions")) and float(node.get("dryness")) < 0.999
 	var enabledEXCLUDEregion := bool(node.get("enable_exclusion_regions"))
 	var region_result := _collect_registered_regions(
@@ -515,7 +520,9 @@ func request_mask_generation(node: Node, visible_rect: Rect2) -> void:
 		"force_generation_polygons": has_generation_regions,
 		"enable_global_noise": has_global_noise_in_rect,
 		"limit_global_noise": limit_global_noise,
+		"global_noise_limit_mode": global_noise_limit_mode,
 		"global_noise_rect": global_noise_rect,
+		"global_noise_polygon": global_noise_polygon,
 		"has_water_sources": has_water_sources,
 		"generation_edge_softness": float(node.get("puddle_edge_softness")) * float(node.get("puddle_size")),
 		"version": int(node.get("_mask_parameter_version")),
@@ -541,6 +548,26 @@ func _get_global_noise_rect(node: Node) -> Rect2:
 	var right := maxf(float(node.get("global_noise_right")), left)
 	var bottom := maxf(float(node.get("global_noise_bottom")), top)
 	return Rect2(Vector2(left, top), Vector2(right - left, bottom - top))
+
+func _get_global_noise_limit_polygon(node: Node) -> PackedVector2Array:
+	var polygon_node := node.get("global_noise_limit_polygon") as Polygon2D
+	if not is_instance_valid(polygon_node) or polygon_node.polygon.size() < 3:
+		return PackedVector2Array()
+	var world_polygon := PackedVector2Array()
+	world_polygon.resize(polygon_node.polygon.size())
+	for index in range(polygon_node.polygon.size()):
+		world_polygon[index] = polygon_node.global_transform * polygon_node.polygon[index]
+	return world_polygon
+
+func _calculate_polygon_bounds(polygon_points: PackedVector2Array) -> Rect2:
+	if polygon_points.is_empty():
+		return Rect2()
+	var minimum := polygon_points[0]
+	var maximum := polygon_points[0]
+	for point in polygon_points:
+		minimum = minimum.min(point)
+		maximum = maximum.max(point)
+	return Rect2(minimum, maximum - minimum)
 
 func _collect_registered_regions(collect_generation: bool, collect_exclusion: bool, GENERATErounding_percent: float, EXCLUDErounding_percent: float, has_global_water_source: bool) -> Dictionary:
 	var generation_result: Array = []
@@ -698,7 +725,8 @@ func _calculate_mask_chunk(index: int, data: Dictionary, chunks: Array, world_re
 	var noise_max_y := resolution
 	var noise_overlaps_mask: bool = bool(data.enable_global_noise) and noise != null
 	if data.enable_global_noise and data.limit_global_noise:
-		var overlap_rect := world_rect.intersection(data.global_noise_rect)
+		var limit_bounds: Rect2 = data.global_noise_rect if int(data.global_noise_limit_mode) == PuddleCanvas.GlobalNoiseLimitMode.RECTANGLE else _calculate_polygon_bounds(data.global_noise_polygon)
+		var overlap_rect := world_rect.intersection(limit_bounds)
 		noise_overlaps_mask = overlap_rect.has_area()
 		if noise_overlaps_mask:
 			var pixel_size := world_rect.size / float(resolution)
@@ -711,7 +739,8 @@ func _calculate_mask_chunk(index: int, data: Dictionary, chunks: Array, world_re
 		for x in range(width):
 			var position := world_rect.position + Vector2((float(x) + 0.5) / resolution, (float(y) + 0.5) / resolution) * world_rect.size
 			var mask_value := 0.0
-			if sample_noise_for_row and x >= noise_min_x and x < noise_max_x:
+			var inside_noise_limit: bool = not bool(data.limit_global_noise) or int(data.global_noise_limit_mode) == PuddleCanvas.GlobalNoiseLimitMode.RECTANGLE or Geometry2D.is_point_in_polygon(position, data.global_noise_polygon)
+			if sample_noise_for_row and x >= noise_min_x and x < noise_max_x and inside_noise_limit:
 				var noisevalue := noise.get_noise_2d(position.x / puddle_size, position.y / puddle_size)
 				mask_value = smoothstep(global_threshold - softness, global_threshold + softness, noisevalue)
 			if data.force_generation_polygons and dryness < 0.999:

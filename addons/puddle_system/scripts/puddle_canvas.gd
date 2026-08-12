@@ -10,6 +10,11 @@ const GLOBAL_NOISE_RANGE_PROPERTIES := [
 	&"global_noise_right",
 	&"global_noise_bottom",
 ]
+
+enum GlobalNoiseLimitMode {
+	RECTANGLE,
+	POLYGON,
+}
 @export_group("Puddle Settings")
 ## 控制是否enabled这个node，关闭后将不再显示任何积水，且不进行任何运算
 @export var puddles_enabled:=true:
@@ -66,28 +71,41 @@ const GLOBAL_NOISE_RANGE_PROPERTIES := [
 		enable_global_noise_puddles = value
 		notify_property_list_changed()
 		_invalidate_mask()
-## 是否limit_global_noise只在四个边界组成的矩形内GENERATE。
+## Limits global noise puddles to either a rectangle or a Polygon2D.
 @export var limit_global_noise_range := false:
 	set(value):
 		limit_global_noise_range = value
 		notify_property_list_changed()
 		_invalidate_mask()
-## 全图noiseGENERATErect的left边界，单位为world_position。
+## Selects the shape used when global noise limiting is enabled.
+@export var global_noise_limit_mode := GlobalNoiseLimitMode.RECTANGLE:
+	set(value):
+		global_noise_limit_mode = value
+		notify_property_list_changed()
+		_update_global_noise_polygon_signature()
+		_invalidate_mask()
+## Polygon2D used as the global noise boundary in POLYGON mode.
+@export var global_noise_limit_polygon: Polygon2D:
+	set(value):
+		global_noise_limit_polygon = value
+		_update_global_noise_polygon_signature()
+		_invalidate_mask()
+## Left world-space boundary used in RECTANGLE mode.
 @export var global_noise_left := -10000000:
 	set(value):
 		global_noise_left = value
 		_invalidate_mask()
-## 全图noiseGENERATErect的top边界，单位为world_position。
+## Top world-space boundary used in RECTANGLE mode.
 @export var global_noise_top := -10000000:
 	set(value):
 		global_noise_top = value
 		_invalidate_mask()
-## 全图noiseGENERATErect的right边界，单位为world_position。
+## Right world-space boundary used in RECTANGLE mode.
 @export var global_noise_right := 10000000:
 	set(value):
 		global_noise_right = value
 		_invalidate_mask()
-## 全图noiseGENERATErect的bottom边界，单位为world_position。
+## Bottom world-space boundary used in RECTANGLE mode.
 @export var global_noise_bottom := 10000000:
 	set(value):
 		global_noise_bottom = value
@@ -289,6 +307,7 @@ var _uploaded_mask_version := -1
 var _mask_parameter_version := 0
 # 仅用于读取旧版插件保存到场景中的“白边”字段，新项目检查器只显示“边框”。
 var _legacy_border_properties: Dictionary = {}
+var _global_noise_polygon_signature := 0
 
 func _set(property: StringName, value: Variant) -> bool:
 	if property in [&"puddles_enabled白边", &"积水白边显示倒影", &"puddles_enabled白边动效", &"积水白边动效强度", &"积水白边闪光强度", &"积水白边颜色", &"积水白边width"]:
@@ -299,7 +318,11 @@ func _set(property: StringName, value: Variant) -> bool:
 func _validate_property(property: Dictionary) -> void:
 	if property.name == &"limit_global_noise_range" and not enable_global_noise_puddles:
 		property.usage = PROPERTY_USAGE_STORAGE
-	elif property.name in GLOBAL_NOISE_RANGE_PROPERTIES and (not enable_global_noise_puddles or not limit_global_noise_range):
+	elif property.name == &"global_noise_limit_mode" and (not enable_global_noise_puddles or not limit_global_noise_range):
+		property.usage = PROPERTY_USAGE_STORAGE
+	elif property.name == &"global_noise_limit_polygon" and (not enable_global_noise_puddles or not limit_global_noise_range or global_noise_limit_mode != GlobalNoiseLimitMode.POLYGON):
+		property.usage = PROPERTY_USAGE_STORAGE
+	elif property.name in GLOBAL_NOISE_RANGE_PROPERTIES and (not enable_global_noise_puddles or not limit_global_noise_range or global_noise_limit_mode != GlobalNoiseLimitMode.RECTANGLE):
 		property.usage = PROPERTY_USAGE_STORAGE
 	elif property.name == &"exclusion_rounding_percent" and not enable_exclusion_regions:
 		property.usage = PROPERTY_USAGE_STORAGE
@@ -312,6 +335,7 @@ func _validate_property(property: Dictionary) -> void:
 
 func _ready() -> void:
 	_migrate_legacy_border_properties()
+	_update_global_noise_polygon_signature()
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	if centered:
 		centered=false
@@ -331,6 +355,24 @@ func _ready() -> void:
 		manager.register_puddle_canvas(self)
 	elif not Engine.is_editor_hint():
 		push_warning("PuddleCanvas could not find /root/PuddleManager. Enable the Puddle System plugin or add the Autoload manually.")
+
+func _process(_delta: float) -> void:
+	if not limit_global_noise_range or global_noise_limit_mode != GlobalNoiseLimitMode.POLYGON:
+		return
+	var previous_signature := _global_noise_polygon_signature
+	_update_global_noise_polygon_signature()
+	if previous_signature != _global_noise_polygon_signature:
+		_invalidate_mask()
+
+func _update_global_noise_polygon_signature() -> void:
+	if not is_instance_valid(global_noise_limit_polygon):
+		_global_noise_polygon_signature = 0
+		return
+	_global_noise_polygon_signature = hash([
+		global_noise_limit_polygon.get_instance_id(),
+		global_noise_limit_polygon.polygon,
+		global_noise_limit_polygon.global_transform,
+	])
 
 func _migrate_legacy_border_properties() -> void:
 	if _legacy_border_properties.has(&"puddles_enabled白边"):
