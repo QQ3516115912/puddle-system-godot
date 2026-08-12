@@ -7,6 +7,7 @@ A dynamic 2D puddle and water reflection plugin for Godot 4.4 and newer.
 - Infinite world-space puddles generated from `FastNoiseLite`.
 - Generation and exclusion regions with curved polygon boundaries.
 - Optional world bounds for global noise puddles.
+- Rectangle or Polygon2D limits for global noise puddles; the two modes are mutually exclusive.
 - Dryness, edge softness, mask smoothing, and buffered mask updates.
 - Dynamic reflections rendered through an automatically managed `SubViewport`.
 - Wind waves, animated borders, footstep ripples, and rain ripples.
@@ -85,6 +86,9 @@ var reflection_texture: ViewportTexture = PuddleManager.get_reflection_texture()
 | `mask_edge_smoothing_radius` | Smooths mask coverage before upload. |
 | `mask_buffer_ratio` | Adds off-screen mask coverage to reduce refresh artifacts. |
 | `enable_global_noise_puddles` | Enables noise-generated puddles across the world. |
+| `limit_global_noise_range` | Enables a boundary for global noise puddles. |
+| `global_noise_limit_mode` | Chooses either `RECTANGLE` or `POLYGON`; only one mode is active. |
+| `global_noise_limit_polygon` | A regular `Polygon2D` used as the boundary in `POLYGON` mode. Its global transform is respected. |
 | `enable_generation_regions` | Enables `GENERATE` regions. |
 | `enable_exclusion_regions` | Enables `EXCLUDE` regions. |
 
